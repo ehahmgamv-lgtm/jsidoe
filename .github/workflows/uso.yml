@@ -1,0 +1,19 @@
+name: Compare Clang Flags Arch Dynamic NDK
+on: [push, workflow_dispatch]
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm wget unzip tar xz curl grep findutils
+      - run: |
+          NDK_URL=$(curl -s https://developer.android.com/ndk/downloads | grep -o 'https://dl.google.com/android/repository/android-ndk-r[0-9]*[a-z]*-linux.zip' | head -n 1)
+          wget -qO ndk.zip $NDK_URL
+          unzip -q ndk.zip
+          NDK_DIR=$(find . -maxdepth 1 -type d -name "android-ndk-*" | head -n 1)
+          touch dummy.c
+          $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin/clang -### -c dummy.c 2>&1
+      - run: |
+          wget -qO llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/LLVM-22.1.1-Linux-X64.tar.xz
+          tar -xf llvm.tar.xz
+          ./LLVM-22.1.1-Linux-X64/bin/clang -### -c dummy.c 2>&1
