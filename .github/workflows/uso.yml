@@ -1,18 +1,18 @@
-name: Compare Clang Flags Arch Dynamic NDK
+name: Compare Clang Flags Arch AUR
 on: [push, workflow_dispatch]
 jobs:
   compare:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - run: pacman -Syu --noconfirm wget unzip tar xz curl grep findutils
+      - run: pacman -Syu --noconfirm base-devel git sudo wget tar xz
       - run: |
-          NDK_URL=$(curl -s https://developer.android.com/ndk/downloads | grep -o 'https://dl.google.com/android/repository/android-ndk-r[0-9]*[a-z]*-linux.zip' | head -n 1)
-          wget -qO ndk.zip $NDK_URL
-          unzip -q ndk.zip
-          NDK_DIR=$(find . -maxdepth 1 -type d -name "android-ndk-*" | head -n 1)
-          touch dummy.c
-          $NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin/clang -### -c dummy.c 2>&1
+          useradd -m -G wheel builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+      - run: su - builder -c "git clone https://aur.archlinux.org/android-ndk.git /tmp/android-ndk"
+      - run: su - builder -c "cd /tmp/android-ndk && makepkg -si --noconfirm"
+      - run: touch dummy.c
+      - run: /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang -### -c dummy.c 2>&1
       - run: |
           wget -qO llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/LLVM-22.1.1-Linux-X64.tar.xz
           tar -xf llvm.tar.xz
