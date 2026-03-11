@@ -1,19 +1,29 @@
-name: Compare Clang Flags Arch AUR Android Target
+name: Compare LLVM 21 vs 22 Minimal
 on: [push, workflow_dispatch]
 jobs:
   compare:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - run: pacman -Syu --noconfirm base-devel git sudo wget tar xz
+      - run: pacman -Syu --noconfirm wget tar xz diffutils
       - run: |
-          useradd -m -G wheel builder
-          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-      - run: su - builder -c "git clone https://aur.archlinux.org/android-ndk.git /tmp/android-ndk"
-      - run: su - builder -c "cd /tmp/android-ndk && makepkg -si --noconfirm"
-      - run: touch dummy.c
-      - run: /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang -### -c dummy.c 2>&1
+          echo 'void bench(double* a, double* b, double* c, int n) {
+            for(int i=0; i<n; i++) {
+              c[i] = a[i] * b[i] + a[i];
+            }
+          }' > dummy.c
       - run: |
-          wget -qO llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/LLVM-22.1.1-Linux-X64.tar.xz
-          tar -xf llvm.tar.xz
-          ./LLVM-22.1.1-Linux-X64/bin/clang --target=aarch64-linux-android34 -### -c dummy.c 2>&1
+          wget -qO llvm21.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz
+          tar -xf llvm21.tar.xz
+          ./LLVM-21.1.8-Linux-X64/bin/clang -O3 -S dummy.c -o llvm21.s
+      - run: |
+          wget -qO llvm22.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/LLVM-22.1.1-Linux-X64.tar.xz
+          tar -xf llvm22.tar.xz
+          ./LLVM-22.1.1-Linux-X64/bin/clang -O3 -S dummy.c -o llvm22.s
+      - run: diff -u llvm21.s llvm22.s || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asm-min
+          path: |
+            llvm21.s
+            llvm22.s
