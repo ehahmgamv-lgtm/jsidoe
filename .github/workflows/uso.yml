@@ -1,4 +1,4 @@
-name: Compare LLVM 21 vs 22 Minimal
+name: Compare LLVM 21 vs 22 ARM64
 on: [push, workflow_dispatch]
 jobs:
   compare:
@@ -7,23 +7,76 @@ jobs:
     steps:
       - run: pacman -Syu --noconfirm wget tar xz diffutils
       - run: |
-          echo 'void bench(double* a, double* b, double* c, int n) {
-            for(int i=0; i<n; i++) {
-              c[i] = a[i] * b[i] + a[i];
-            }
-          }' > dummy.c
+          cat << 'EOF' > dummy.c
+          #include <stddef.h>
+
+          typedef struct {
+              int id;
+              int state;
+              float score;
+              char flags[8];
+          } Record;
+
+          // Парсер-машина состояний. Векторизовать это почти нереально без подсказок,
+          // поэтому компилятору придется потеть над скалярной оптимизацией,
+          // планированием инструкций, пайплайном ARM64 и аллокацией регистров.
+          int process_records(Record* records, size_t count, const char* commands, size_t cmd_len) {
+              int active_count = 0;
+              int global_state = 0;
+
+              for (size_t i = 0; i < count; i++) {
+                  if (records[i].id < 0) continue;
+
+                  for (size_t j = 0; j < cmd_len; j++) {
+                      switch (commands[j]) {
+                          case 'A':
+                              records[i].state += 1;
+                              records[i].score *= 1.05f;
+                              break;
+                          case 'B':
+                              if (records[i].state > 10) {
+                                  records[i].flags[0] = 1;
+                                  global_state++;
+                              }
+                              break;
+                          case 'C':
+                              records[i].score -= 0.5f;
+                              if (records[i].score < 0.0f) {
+                                  records[i].state = 0;
+                              }
+                              break;
+                          case 'D':
+                              // Зависимость от памяти и аккумуляция
+                              active_count += records[i].flags[0];
+                              break;
+                          default:
+                              // Побитовые операции
+                              records[i].flags[7] ^= 1;
+                              break;
+                      }
+                  }
+                  
+                  // Зависимость между итерациями цикла
+                  if (global_state % 3 == 0) {
+                      records[i].id += active_count;
+                  }
+              }
+
+              return active_count + global_state;
+          }
+          EOF
       - run: |
           wget -qO llvm21.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz
           tar -xf llvm21.tar.xz
-          ./LLVM-21.1.8-Linux-X64/bin/clang -O3 -S dummy.c -o llvm21.s
+          ./LLVM-21.1.8-Linux-X64/bin/clang --target=aarch64-linux-gnu -O3 -S dummy.c -o llvm21.s
       - run: |
           wget -qO llvm22.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/LLVM-22.1.1-Linux-X64.tar.xz
           tar -xf llvm22.tar.xz
-          ./LLVM-22.1.1-Linux-X64/bin/clang -O3 -S dummy.c -o llvm22.s
+          ./LLVM-22.1.1-Linux-X64/bin/clang --target=aarch64-linux-gnu -O3 -S dummy.c -o llvm22.s
       - run: diff -u llvm21.s llvm22.s || true
       - uses: actions/upload-artifact@v4
         with:
-          name: asm-min
+          name: asm-arm64
           path: |
             llvm21.s
             llvm22.s
