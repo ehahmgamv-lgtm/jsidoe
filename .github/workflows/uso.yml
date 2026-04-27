@@ -7,10 +7,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - run: |
-          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
-          sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
-          sudo netplan apply
-          curl -6 -sI --max-time 5 https://ipv6.google.com >/dev/null 2>&1 && echo "✅ IPv6 РАБОТАЕТ (TCP прошел)" || echo "❌ НЕТ ДОСТУПА ИЛИ АДРЕСА"
-          sudo apt update && sudo apt install tcpdump -y
-          sudo tcpdump -i eth0 -n -v icmp6 and 'icmp6[icmp6type] == 134' -c 1
+          sudo apt update && sudo apt install miniupnpc -y
+          upnpc -s
